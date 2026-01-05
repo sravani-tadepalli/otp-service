@@ -1,0 +1,31 @@
+name: Build & Deploy OTP Service
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: 637423328238
+  ECR_REPO: otp-service
+  ECS_CLUSTER: otp-service-cluster
+  ECS_SERVICE: otp-service
+  TASK_FAMILY: otp-service-task
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # AWS auth + deployment steps will be enabled later
+      - name: CI/CD placeholder
+        run: |
+          echo "CI/CD pipeline wired successfully"
+          echo "Next steps: AWS auth, ECR push, ECS deploy"
