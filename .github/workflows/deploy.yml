@@ -9,12 +9,12 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: ap-south-1
   AWS_ACCOUNT_ID: 637423328238
   ECR_REPO: otp-service
   ECS_CLUSTER: otp-service-cluster
   ECS_SERVICE: otp-service
-  TASK_FAMILY: otp-service-task
+  TASK_FAMILY: otp-service
 
 jobs:
   deploy:
@@ -24,8 +24,52 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # AWS auth + deployment steps will be enabled later
-      - name: CI/CD placeholder
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::637423328238:role/github-actions-ecs
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
         run: |
-          echo "CI/CD pipeline wired successfully"
-          echo "Next steps: AWS auth, ECR push, ECS deploy"
+          IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
+
+      - name: Fetch current task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition $TASK_FAMILY \
+            --query taskDefinition \
+            > taskdef.json
+
+      - name: Register new task definition revision
+        run: |
+          IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest
+
+          jq \
+            --arg IMAGE "$IMAGE_URI" \
+            '.containerDefinitions[0].image = $IMAGE
+             | del(
+                 .taskDefinitionArn,
+                 .revision,
+                 .status,
+                 .requiresAttributes,
+                 .compatibilities,
+                 .registeredAt,
+                 .registeredBy
+               )' \
+            taskdef.json > new-taskdef.json
+
+          aws ecs register-task-definition \
+            --cli-input-json file://new-taskdef.json
+
+      - name: Force ECS service redeploy
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --force-new-deployment
