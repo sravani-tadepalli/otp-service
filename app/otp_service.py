@@ -1,7 +1,7 @@
 from app.redis_client import get_redis_client
 from app.utils import generate_otp, hash_value
 from app.config import settings
-
+from typing import Tuple, Optional
 from enum import Enum
 
 class OTPResult(str, Enum):
@@ -10,15 +10,15 @@ class OTPResult(str, Enum):
     REDIS_UNAVAILABLE = "redis_unavailable"
 
 
-def create_otp(mobile: str) -> OTPResult:
+def create_otp(mobile: str) -> tuple[OTPResult, Optional[str]]:
     client = get_redis_client()
     if not client:
-        return OTPResult.REDIS_UNAVAILABLE
+        return OTPResult.REDIS_UNAVAILABLE, None
 
     rate_key = f"rate:{mobile}"
 
     if client.exists(rate_key):
-        return OTPResult.RATE_LIMITED
+        return OTPResult.RATE_LIMITED, None
 
     otp = generate_otp()
     otp_hash = hash_value(otp)
@@ -27,7 +27,9 @@ def create_otp(mobile: str) -> OTPResult:
     client.setex(rate_key, settings.RATE_LIMIT_SECONDS, 1)
 
     print(f"[DEBUG] OTP for {mobile}: {otp}")
-    return OTPResult.SUCCESS
+
+    # 🔹 ONLY ADDITION
+    return OTPResult.SUCCESS, otp
 
 def verify_otp(mobile: str, otp: str) -> bool:
     client = get_redis_client()

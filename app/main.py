@@ -15,10 +15,13 @@ app.add_middleware(
 
 @app.post("/otp/generate")
 def generate_otp(req: OTPRequest):
-    result = create_otp(req.mobile)
+    result, otp = create_otp(req.mobile)
 
     if result == OTPResult.SUCCESS:
-        return {"message": "OTP sent successfully"}
+        return {
+            "message": "OTP generated",
+            "otp": otp   # 🔹 demo visibility
+        }
 
     if result == OTPResult.RATE_LIMITED:
         raise HTTPException(
