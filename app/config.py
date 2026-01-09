@@ -9,6 +9,6 @@ class Settings:
     REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
 
     OTP_TTL: int = 180  # seconds
-    RATE_LIMIT_SECONDS: int = 5
+    RATE_LIMIT_SECONDS: int = 60  # seconds
 
 settings = Settings()
